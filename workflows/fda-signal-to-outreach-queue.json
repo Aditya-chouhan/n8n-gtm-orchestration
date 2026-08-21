@@ -1,0 +1,228 @@
+{
+  "id": "fdaSignalQueue01",
+  "name": "FDA Signal \u2192 Scored Outreach Queue",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "a1000000-0000-4000-8000-000000000007",
+      "name": "Manual Run (CLI / testing)",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -220,
+        140
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "triggerAtHour": 7,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "id": "a1000000-0000-4000-8000-000000000001",
+      "name": "Daily 07:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.fda.gov/drug/enforcement.json",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "sort",
+              "value": "report_date:desc"
+            },
+            {
+              "name": "limit",
+              "value": "100"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000,
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 1000
+            }
+          }
+        }
+      },
+      "id": "a1000000-0000-4000-8000-000000000002",
+      "name": "Fetch openFDA Enforcement",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        0,
+        300
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Roll raw recall lines up to firm level and score each firm 0-100.\n// Mirrors the disclosed rubric in atlas-signal-engine/score.py.\nconst payload = $input.first().json;\nconst records = payload.results || [];\nif (!records.length) {\n  throw new Error('openFDA returned no records \u2014 refusing to emit an empty queue');\n}\n\nconst ANCHOR = new Date();\nconst firms = new Map();\n\nfor (const r of records) {\n  const name = (r.recalling_firm || '').trim();\n  if (!name) continue;\n  if (!firms.has(name)) {\n    firms.set(name, { firm: name, events: new Set(), lines: 0, worst: 'Class III', mostRecent: null, ongoing: false, qualityFlag: false, reasons: [], country: r.country || '', state: r.state || '' });\n  }\n  const f = firms.get(name);\n  f.lines += 1;\n  if (r.event_id) f.events.add(r.event_id);\n\n  const rank = { 'Class I': 3, 'Class II': 2, 'Class III': 1 };\n  if ((rank[r.classification] || 0) > (rank[f.worst] || 0)) f.worst = r.classification;\n\n  const d = r.report_date ? new Date(`${r.report_date.slice(0,4)}-${r.report_date.slice(4,6)}-${r.report_date.slice(6,8)}`) : null;\n  if (d && (!f.mostRecent || d > f.mostRecent)) f.mostRecent = d;\n\n  if ((r.status || '').toLowerCase() === 'ongoing') f.ongoing = true;\n\n  const reason = (r.reason_for_recall || '').toLowerCase();\n  if (/cgmp|steril|impurit|contamina|assay|dissolution|degradation|stability/.test(reason)) {\n    f.qualityFlag = true;\n  }\n  if (r.reason_for_recall && f.reasons.length < 1) f.reasons.push(r.reason_for_recall);\n}\n\nconst out = [];\nfor (const f of firms.values()) {\n  const severity = f.worst === 'Class I' ? 40 : f.worst === 'Class II' ? 25 : 10;\n  const days = f.mostRecent ? Math.floor((ANCHOR - f.mostRecent) / 86400000) : 9999;\n  const recency = days < 30 ? 25 : days < 90 ? 18 : days < 180 ? 10 : 0;\n  const n = f.events.size;\n  const systemic = n >= 10 ? 20 : n >= 4 ? 14 : n >= 2 ? 8 : 0;\n  const quality = f.qualityFlag ? 10 : 0;\n  const ongoing = f.ongoing ? 5 : 0;\n  const score = severity + recency + systemic + quality + ongoing;\n\n  out.push({ json: {\n    firm: f.firm,\n    score,\n    components: { severity, recency, systemic, quality_system: quality, ongoing },\n    worst_classification: f.worst,\n    distinct_events: n,\n    total_recall_lines: f.lines,\n    days_since_recent: days,\n    any_ongoing: f.ongoing,\n    quality_system_flag: f.qualityFlag,\n    representative_reason: f.reasons[0] || '',\n    country: f.country,\n    state: f.state\n  }});\n}\n\nout.sort((a, b) => b.json.score - a.json.score);\nreturn out;"
+      },
+      "id": "a1000000-0000-4000-8000-000000000003",
+      "name": "Roll Up + Score Firms",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.score }}",
+              "rightValue": 60,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            },
+            {
+              "id": "c2",
+              "leftValue": "={{ $json.total_recall_lines }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a1000000-0000-4000-8000-000000000004",
+      "name": "Score >= 60 AND has recall lines",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        450,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Compose a grounded outreach brief. Every fact below is copied from the\n// FDA record \u2014 nothing is generated, inferred, or embellished.\n// No contact is invented: outreach targets a ROLE, never a named person.\nconst rows = $input.all();\nconst briefs = rows.slice(0, 10).map(({ json: f }) => {\n  const urgency = f.days_since_recent < 30 ? 'this month' : f.days_since_recent < 90 ? 'this quarter' : 'recently';\n  return { json: {\n    firm: f.firm,\n    score: f.score,\n    target_role: 'Chief Quality Officer / VP Quality',\n    why_now: `${f.worst_classification} enforcement action ${urgency} (${f.days_since_recent}d ago), ${f.distinct_events} distinct event(s) across ${f.total_recall_lines} recall line(s).`,\n    evidence: f.representative_reason.slice(0, 220),\n    quality_system_signal: f.quality_system_flag,\n    still_ongoing: f.any_ongoing,\n    grounded_in: 'openFDA drug/enforcement \u2014 every field above is copied verbatim from the filing',\n    contact: 'ROLE ONLY \u2014 no individual contact is generated by this workflow'\n  }};\n});\nif (!briefs.length) {\n  return [{ json: { status: 'no_firms_cleared_threshold', briefs: 0 } }];\n}\nreturn briefs;"
+      },
+      "id": "a1000000-0000-4000-8000-000000000005",
+      "name": "Build Grounded Briefs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Fetch failed after all retries. Emit a structured alert payload rather\n// than letting the run die silently \u2014 the whole point of the error branch.\nconst err = $input.first().json;\nreturn [{ json: {\n  alert: true,\n  severity: 'FAIL',\n  workflow: 'FDA Signal \u2192 Scored Outreach Queue',\n  stage: 'Fetch openFDA Enforcement',\n  message: 'openFDA fetch failed after 3 retries \u2014 outreach queue NOT refreshed today',\n  detail: (err && (err.error || err.message)) || 'unknown error',\n  at: new Date().toISOString(),\n  action: 'Queue is stale. Do not send from it until this clears.'\n}}];"
+      },
+      "id": "a1000000-0000-4000-8000-000000000006",
+      "name": "Alert: Fetch Failed",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        420
+      ]
+    }
+  ],
+  "connections": {
+    "Daily 07:00": {
+      "main": [
+        [
+          {
+            "node": "Fetch openFDA Enforcement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch openFDA Enforcement": {
+      "main": [
+        [
+          {
+            "node": "Roll Up + Score Firms",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Alert: Fetch Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Roll Up + Score Firms": {
+      "main": [
+        [
+          {
+            "node": "Score >= 60 AND has recall lines",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Score >= 60 AND has recall lines": {
+      "main": [
+        [
+          {
+            "node": "Build Grounded Briefs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Run (CLI / testing)": {
+      "main": [
+        [
+          {
+            "node": "Fetch openFDA Enforcement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true
+  },
+  "pinData": {},
+  "versionId": "v1-2026-08-21"
+}

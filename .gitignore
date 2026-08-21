@@ -1,0 +1,7 @@
+node_modules/
+.n8n-home/
+install*.log
+output/run*.log
+output/exec*.log
+.DS_Store
+package-lock.json
