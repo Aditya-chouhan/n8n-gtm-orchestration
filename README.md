@@ -4,8 +4,16 @@ A scheduled n8n workflow that turns live FDA enforcement filings into a ranked,
 grounded outreach queue — with the failure handling a production GTM pipeline
 actually needs.
 
-**This workflow was executed headlessly and its real output is committed**, in
-`output/sample-run.json`. It is not a screenshot of a canvas.
+**This workflow really was executed headlessly, and the run is committed** in
+`output/sample-run.json` — not a screenshot of a canvas.
+
+Be precise about what that file is: it is a **summary I wrote from the run**
+(per-node status, item counts, timings, the funnel, the briefs), not n8n's raw
+`resultData.runData` dump. The numbers in it come from an actual `n8n execute`
+against the live openFDA API; the schema around them is mine, chosen to be
+readable. If you want the native output, re-run the command in *Reproduce*
+below and compare — the funnel should match, and the per-firm "N days ago"
+fields should have advanced by however many days have passed since the commit.
 
 ## The problem it solves
 
@@ -27,9 +35,14 @@ Manual Run ──┘        │
                       └── (on error, after 3 retries) ──→ Alert: Fetch Failed
 ```
 
-Two entry points by design: the **Schedule Trigger** is the production entry
-(daily 07:00); the **Manual Trigger** exists so the workflow can be executed from
-CLI and CI, which is how the committed run below was produced.
+Two entry points: the **Schedule Trigger** is the production entry (daily 07:00);
+the **Manual Trigger** exists so the workflow can be executed from CLI and CI,
+which is how the committed run below was produced.
+
+The manual trigger is there because the first CLI run failed — `n8n execute`
+returned *"Missing node to start execution"*, since a Schedule Trigger alone
+gives the CLI no entrypoint. Adding the manual trigger fixed it. Recording that
+because "it worked first time" would be the less useful claim.
 
 ## Production markers
 
@@ -64,9 +77,15 @@ Executed via `n8n execute` on n8n **2.35.7**, against the live openFDA API:
 **Funnel:** 100 raw enforcement records → 34 firms after roll-up → 11 cleared the
 score threshold → 10 briefs.
 
-These numbers move between runs because the data is live — that is the point of a
-scheduled signal pipeline, and the committed `sample-run.json` is one dated
-snapshot, not a fixed fixture.
+**The 11 → 10 step is not attrition — it is a hardcoded cap.** `Build Grounded
+Briefs` does `rows.slice(0, 10)`, so the queue never emits more than 10 briefs
+per run no matter how many firms clear the threshold. That is a deliberate
+volume guard on a daily job, but it is a code decision and not a property of the
+data, so it is stated here rather than left to look like a drop-off.
+
+The other numbers do move between runs, because the data is live — that is the
+point of a scheduled signal pipeline, and the committed `sample-run.json` is one
+dated snapshot, not a fixed fixture.
 
 ## Run it yourself
 
