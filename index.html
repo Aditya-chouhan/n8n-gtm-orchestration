@@ -1,0 +1,599 @@
+<!-- charset and viewport first -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>n8n GTM Orchestration — FDA signal to scored outreach queue</title>
+<meta name="description" content="A scheduled n8n workflow that turns live FDA enforcement filings into a ranked, grounded outreach queue, with production-grade failure handling.">
+<link rel="canonical" href="https://aditya-chouhan.github.io/n8n-gtm-orchestration/">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#08080A" media="(prefers-color-scheme: dark)">
+<meta property="og:type" content="article">
+<meta property="og:title" content="n8n GTM Orchestration — FDA signal to scored outreach queue">
+<meta property="og:description" content="A scheduled n8n workflow that turns live FDA enforcement filings into a ranked, grounded outreach queue, with production-grade failure handling.">
+<meta property="og:url" content="https://aditya-chouhan.github.io/n8n-gtm-orchestration/">
+<meta property="og:image" content="https://aditya-chouhan.github.io/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231D1D1F'/%3E%3Ctext x='32' y='44' font-family='-apple-system,BlinkMacSystemFont,Helvetica,Arial' font-size='36' font-weight='600' fill='%23fff' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
+<style>
+/* ===================================================================
+   Case-study design system — Apple-native glass + monochrome
+   Canonical source. Inline verbatim into each project page's <style>.
+   Tokens are identical to aditya-chouhan.github.io/index.html.
+   =================================================================== */
+
+/* ---------- TOKENS ---------- */
+:root {
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI Variable Display", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+
+  --bg: #FFFFFF;
+  --bg-sunken: #F5F5F7;
+  --surface: #FFFFFF;
+  --chrome: rgba(255,255,255,0.72);
+  --text-1: #1D1D1F;
+  --text-2: #6E6E73;
+  --text-3: #86868B;
+  --hairline: rgba(0,0,0,0.08);
+  --hairline-strong: rgba(0,0,0,0.14);
+  --accent: #0066CC;
+  --accent-hover: #0055AA;
+  --code-bg: #1D1D1F;
+  --code-fg: #F5F5F7;
+  --code-dim: #86868B;
+
+  --e1: 0 1px 2px rgba(0,0,0,.04), 0 1px 1px rgba(0,0,0,.03);
+  --e2: 0 4px 16px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+  --e3: 0 12px 40px rgba(0,0,0,.10), 0 2px 8px rgba(0,0,0,.05);
+
+  --s1:.25rem; --s2:.5rem; --s3:.75rem; --s4:1rem; --s5:1.5rem;
+  --s6:2rem; --s7:3rem; --s8:4rem; --s9:6rem; --s10:8rem;
+
+  --r-sm:8px; --r-md:14px; --r-lg:20px; --r-xl:28px; --r-full:999px;
+
+  --blur-chrome: 20px;
+  --wrap: 820px;
+
+  --damped: cubic-bezier(0.32, 0.72, 0, 1);
+  --bounce: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --micro: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #08080A;
+    --bg-sunken: #101012;
+    --surface: #141416;
+    --chrome: rgba(20,20,22,0.72);
+    --text-1: #F5F5F7;
+    --text-2: #A1A1A6;
+    --text-3: #6E6E73;
+    --hairline: rgba(255,255,255,0.10);
+    --hairline-strong: rgba(255,255,255,0.18);
+    --accent: #2997FF;
+    --accent-hover: #5AAEFF;
+    --code-bg: #000000;
+    --code-fg: #E8E8ED;
+    --code-dim: #6E6E73;
+    --e1: 0 1px 2px rgba(0,0,0,.5);
+    --e2: 0 8px 28px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.05);
+    --e3: 0 20px 56px rgba(0,0,0,.65), inset 0 1px 0 rgba(255,255,255,.07);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #08080A;
+  --bg-sunken: #101012;
+  --surface: #141416;
+  --chrome: rgba(20,20,22,0.72);
+  --text-1: #F5F5F7;
+  --text-2: #A1A1A6;
+  --text-3: #6E6E73;
+  --hairline: rgba(255,255,255,0.10);
+  --hairline-strong: rgba(255,255,255,0.18);
+  --accent: #2997FF;
+  --accent-hover: #5AAEFF;
+  --code-bg: #000000;
+  --code-fg: #E8E8ED;
+  --code-dim: #6E6E73;
+  --e1: 0 1px 2px rgba(0,0,0,.5);
+  --e2: 0 8px 28px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.05);
+  --e3: 0 20px 56px rgba(0,0,0,.65), inset 0 1px 0 rgba(255,255,255,.07);
+}
+
+/* ---------- BASE ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text-1);
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.55;
+  font-optical-sizing: auto;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color .25s ease, color .25s ease;
+  overflow-x: hidden;
+}
+h1, h2, h3, h4 { margin: 0; font-weight: 600; }
+p { margin: 0; }
+ul, ol { margin: 0; padding: 0; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { color: var(--accent-hover); }
+img { max-width: 100%; height: auto; }
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: var(--r-sm);
+}
+
+.skip {
+  position: absolute; left: -9999px; top: 0; z-index: 100;
+  background: var(--surface); color: var(--text-1);
+  padding: var(--s3) var(--s4); border-radius: var(--r-sm); box-shadow: var(--e3);
+}
+.skip:focus { left: var(--s4); top: var(--s4); }
+
+.wrap { width: 100%; max-width: var(--wrap); margin: 0 auto; padding-inline: var(--s5); }
+@media (min-width: 700px) { .wrap { padding-inline: var(--s6); } }
+
+/* ---------- TYPE ---------- */
+.t-display  { font-size: clamp(2rem, 4.6vw, 3rem); font-weight: 600; line-height: 1.06; letter-spacing: -0.025em; }
+.t-section  { font-size: clamp(1.375rem, 2.4vw, 1.75rem); font-weight: 600; line-height: 1.12; letter-spacing: -0.02em; }
+.t-title    { font-size: 1.25rem; font-weight: 600; line-height: 1.2; letter-spacing: -0.015em; }
+.t-headline { font-size: 1.0625rem; font-weight: 590; line-height: 1.3; letter-spacing: -0.01em; }
+.t-body-lg  { font-size: 1.1875rem; line-height: 1.55; letter-spacing: -0.003em; }
+.t-caption  { font-size: .875rem; line-height: 1.45; letter-spacing: .004em; }
+.t-micro {
+  font-family: var(--font-mono);
+  font-size: .75rem; font-weight: 590; line-height: 1.3;
+  letter-spacing: .06em; text-transform: uppercase;
+}
+.dim  { color: var(--text-2); }
+.dim3 { color: var(--text-3); }
+.balance { text-wrap: balance; }
+
+/* ---------- NAV (the only glass surface) ---------- */
+.nav {
+  position: sticky; top: 0; z-index: 50;
+  height: 52px; display: flex; align-items: center;
+  border-bottom: 1px solid transparent;
+  transition: background-color .35s var(--damped),
+              backdrop-filter .35s var(--damped),
+              border-color .35s var(--damped);
+}
+.nav[data-stuck="true"] {
+  background: var(--chrome);
+  -webkit-backdrop-filter: blur(var(--blur-chrome)) saturate(180%);
+  backdrop-filter: blur(var(--blur-chrome)) saturate(180%);
+  border-bottom-color: var(--hairline);
+}
+.nav .wrap { display: flex; align-items: center; justify-content: space-between; gap: var(--s4); }
+.nav-back {
+  display: inline-flex; align-items: center; gap: var(--s2);
+  font-size: .9375rem; font-weight: 500; color: var(--text-1);
+  padding: var(--s2) 0;
+}
+.nav-back:hover { color: var(--text-1); }
+.nav-back .arrow { display: inline-block; transition: transform .25s var(--damped); }
+.nav-back:hover .arrow { transform: translateX(-3px); }
+.nav-right { display: flex; align-items: center; gap: var(--s5); }
+.nav-right > a { font-size: .9375rem; font-weight: 500; color: var(--text-2); padding: var(--s2) 0; }
+.nav-right > a:hover { color: var(--text-1); }
+@media (max-width: 560px) { .nav-hide-sm { display: none; } }
+
+/* ---------- HERO ---------- */
+.hero { padding-top: var(--s8); padding-bottom: clamp(var(--s6), 4vw, var(--s7)); }
+.hero .eyebrow { color: var(--text-3); margin-bottom: var(--s4); }
+.hero h1 { margin-bottom: var(--s5); max-width: 22ch; }
+.hero .dek { color: var(--text-2); max-width: 62ch; }
+
+/* ---------- SECTIONS ---------- */
+main { padding-bottom: var(--s9); }
+.sec { padding-block: clamp(var(--s6), 4vw, var(--s7)); }
+.sec + .sec { border-top: 1px solid var(--hairline); }
+.sec > h2 { margin-bottom: var(--s3); }
+.sec .lede { color: var(--text-3); margin-bottom: var(--s5); max-width: 68ch; }
+.sec p { color: var(--text-2); max-width: 68ch; margin-bottom: var(--s4); }
+.sec p:last-child { margin-bottom: 0; }
+.sec p strong, .sec li strong { color: var(--text-1); font-weight: 590; }
+.sec ul.bullets { list-style: none; margin: 0 0 var(--s4); }
+.sec ul.bullets li {
+  position: relative; padding-left: var(--s5); margin-bottom: var(--s3);
+  color: var(--text-2); max-width: 68ch;
+}
+.sec ul.bullets li::before {
+  content: ""; position: absolute; left: var(--s2); top: .62em;
+  width: 4px; height: 4px; border-radius: 50%; background: var(--text-3);
+}
+.sec ol.steps { list-style: none; counter-reset: step; margin: 0 0 var(--s4); }
+.sec ol.steps li {
+  counter-increment: step; position: relative;
+  padding-left: var(--s6); margin-bottom: var(--s4);
+  color: var(--text-2); max-width: 68ch;
+}
+.sec ol.steps li::before {
+  content: counter(step); position: absolute; left: 0; top: 0;
+  font-family: var(--font-mono); font-size: .75rem; font-weight: 590;
+  color: var(--text-3); line-height: 1.7;
+}
+
+/* ---------- DATA STRIP (replaces coloured metric pills) ----------
+   Every caveat sits inside the same strip as the number it qualifies,
+   so a disclosure can never be visually separated from its claim.     */
+.data {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: .8125rem;
+  line-height: 1.65;
+  color: var(--text-2);
+  background: var(--bg-sunken);
+  border-left: 2px solid var(--hairline-strong);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  padding: var(--s3) var(--s4);
+  margin-bottom: var(--s5);
+  overflow-wrap: anywhere;
+}
+.data:last-child { margin-bottom: 0; }
+.data b { color: var(--text-1); font-weight: 600; }
+.data .note { color: var(--text-3); }
+
+/* ---------- CARD ---------- */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-lg);
+  box-shadow: var(--e1);
+  padding: var(--s5) var(--s5);
+  margin-bottom: var(--s4);
+}
+@media (min-width: 700px) { .card { padding: var(--s6); } }
+.card > h3 { margin-bottom: var(--s3); }
+.card p { color: var(--text-2); }
+.grid-2 { display: grid; gap: var(--s4); }
+@media (min-width: 760px) { .grid-2 { grid-template-columns: 1fr 1fr; } }
+
+/* ---------- TABLE ---------- */
+.table-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: var(--e1);
+  margin-bottom: var(--s4);
+  -webkit-overflow-scrolling: touch;
+}
+table { width: 100%; border-collapse: collapse; font-size: .875rem; min-width: 560px; }
+thead th {
+  text-align: left; white-space: nowrap;
+  font-family: var(--font-mono); font-size: .6875rem; font-weight: 590;
+  letter-spacing: .06em; text-transform: uppercase; color: var(--text-3);
+  padding: var(--s3) var(--s4);
+  background: var(--bg-sunken);
+  border-bottom: 1px solid var(--hairline);
+}
+tbody td {
+  padding: var(--s3) var(--s4);
+  border-bottom: 1px solid var(--hairline);
+  vertical-align: top;
+  color: var(--text-1);
+  font-variant-numeric: tabular-nums;
+}
+tbody td.dim { color: var(--text-2); }
+tbody tr:last-child td { border-bottom: none; }
+tbody tr { transition: background-color .2s var(--damped); }
+tbody tr:hover { background: var(--bg-sunken); }
+td.mono, .mono { font-family: var(--font-mono); font-size: .8125rem; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* ---------- TAG — neutral only. No trust colour anywhere. ---------- */
+.tag {
+  display: inline-block; white-space: nowrap;
+  font-family: var(--font-mono); font-size: .6875rem; font-weight: 590;
+  letter-spacing: .04em; text-transform: uppercase;
+  color: var(--text-2); background: var(--bg-sunken);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-full);
+  padding: 2px 9px;
+}
+.tag.strong { color: var(--text-1); border-color: var(--hairline-strong); }
+.taglist { display: flex; flex-wrap: wrap; gap: var(--s2); margin-bottom: var(--s4); }
+
+/* ---------- CODE ---------- */
+pre {
+  background: var(--code-bg); color: var(--code-fg);
+  border-radius: var(--r-md);
+  padding: var(--s5);
+  overflow-x: auto;
+  font-family: var(--font-mono); font-size: .8125rem; line-height: 1.7;
+  margin: 0 0 var(--s4);
+  -webkit-overflow-scrolling: touch;
+}
+pre .c { color: var(--code-dim); }
+code {
+  font-family: var(--font-mono); font-size: .875em;
+  background: var(--bg-sunken); color: var(--text-1);
+  border-radius: 5px; padding: .12em .38em;
+}
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+
+/* ---------- FIGURE ---------- */
+figure { margin: 0 0 var(--s4); }
+figure img { border-radius: var(--r-md); border: 1px solid var(--hairline); display: block; }
+figcaption { font-size: .8125rem; color: var(--text-3); margin-top: var(--s3); }
+
+/* ---------- CTA ---------- */
+.cta {
+  background: var(--bg-sunken);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-xl);
+  padding: var(--s6) var(--s5);
+  margin-top: var(--s7);
+}
+@media (min-width: 700px) { .cta { padding: var(--s7); } }
+.cta h2 { margin-bottom: var(--s3); }
+.cta p { color: var(--text-2); max-width: 56ch; margin-bottom: var(--s5); }
+.btn-row { display: flex; flex-wrap: wrap; gap: var(--s3); align-items: center; }
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 44px; padding: 0 var(--s5);
+  border-radius: var(--r-full);
+  font-size: .9375rem; font-weight: 590; letter-spacing: -0.01em;
+  border: 1px solid transparent; cursor: pointer;
+  transition: background-color .25s var(--damped), border-color .25s var(--damped), color .25s var(--damped);
+}
+.btn-primary { background: var(--text-1); color: var(--bg); }
+.btn-primary:hover { background: var(--text-1); color: var(--bg); opacity: .88; }
+.btn-ghost { background: transparent; color: var(--text-1); border-color: var(--hairline-strong); }
+.btn-ghost:hover { background: var(--bg-sunken); color: var(--text-1); }
+
+/* ---------- FOOTER ---------- */
+.foot {
+  border-top: 1px solid var(--hairline);
+  padding-block: var(--s6);
+  display: flex; flex-wrap: wrap; gap: var(--s4);
+  justify-content: space-between; align-items: center;
+  font-size: .875rem; color: var(--text-3);
+}
+.foot a { color: var(--text-2); }
+.foot a:hover { color: var(--text-1); }
+.foot-links { display: flex; flex-wrap: wrap; gap: var(--s5); }
+
+/* ---------- MOTION ----------
+   Content is visible by DEFAULT. JS adds the pending state on init only
+   when it will actually observe the element. A JS failure never blanks
+   the page. A 1.2s failsafe reveals anything the observer never fired for. */
+[data-reveal="pending"] { opacity: 0; transform: translateY(16px); filter: blur(6px); }
+[data-reveal="in"] {
+  opacity: 1; transform: none; filter: blur(0);
+  transition: opacity .55s var(--damped), transform .55s var(--damped), filter .55s var(--damped);
+}
+.pressed   { transform: scale(.978); transition: transform .12s var(--micro); }
+.unpressed { transform: scale(1);    transition: transform .4s var(--bounce); }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+  }
+  [data-reveal] { opacity: 1 !important; transform: none !important; filter: none !important; }
+  .pressed, .unpressed { transform: none !important; }
+}
+@media (prefers-contrast: more) {
+  :root { --hairline: rgba(0,0,0,.35); --hairline-strong: rgba(0,0,0,.55); --text-2: #4A4A4E; --text-3: #5A5A5E; }
+  :root[data-theme="dark"], :root:not([data-theme="light"]) { }
+}
+@media print {
+  .nav, .cta, .skip { display: none !important; }
+  body { background: #fff; color: #000; }
+  [data-reveal] { opacity: 1 !important; transform: none !important; filter: none !important; }
+}
+
+</style>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<nav class="nav" id="nav" aria-label="Primary">
+  <div class="wrap">
+    <a class="nav-back" href="https://aditya-chouhan.github.io/"><span class="arrow">&larr;</span> Aditya Chouhan</a>
+    <span class="nav-right">
+      <a class="nav-hide-sm" href="https://github.com/Aditya-chouhan/n8n-gtm-orchestration">Repository</a>
+      <a href="mailto:ai.adityachouhan@gmail.com?subject=Project">Get in touch</a>
+    </span>
+  </div>
+</nav>
+
+<header class="hero wrap">
+  <div class="t-micro eyebrow">n8n &middot; scheduled orchestration</div>
+  <h1 class="t-display balance">FDA signal &rarr; scored outreach queue, with the failure handling</h1>
+  <p class="t-body-lg dek">A scheduled n8n workflow that turns live FDA enforcement filings into a ranked, grounded outreach queue &mdash; with the failure handling a production GTM pipeline actually needs.</p>
+</header>
+
+<main id="main" class="wrap">
+
+  <section class="sec" aria-labelledby="s-run">
+    <h2 class="t-section balance" id="s-run">The run is committed, not screenshotted</h2>
+    <p><strong>This workflow really was executed headlessly, and the run is committed</strong> in <code>output/sample-run.json</code> &mdash; not a screenshot of a canvas.</p>
+    <p class="data"><b>Be precise about what that file is.</b> It is a <em>summary I wrote from the run</em> (per-node status, item counts, timings, the funnel, the briefs), not n8n&rsquo;s raw <code>resultData.runData</code> dump. The numbers in it come from an actual <code>n8n execute</code> against the live openFDA API; the schema around them is mine, chosen to be readable. <span class="note">If you want the native output, re-run the command in Reproduce below and compare &mdash; the funnel should match, and the per-firm &ldquo;N days ago&rdquo; fields should have advanced by however many days have passed since the commit.</span></p>
+  </section>
+
+  <section class="sec" aria-labelledby="s-problem">
+    <h2 class="t-section balance" id="s-problem">The problem it solves</h2>
+    <p>Signal-based outbound only works if the signal refreshes on its own. The moment it depends on someone remembering to re-run a script, it goes stale, and reps start calling accounts whose trigger expired months ago. Worse, when the refresh <em>fails</em>, the queue doesn&rsquo;t empty &mdash; it silently serves yesterday&rsquo;s data and nobody knows.</p>
+    <p>So the interesting part of this workflow isn&rsquo;t the happy path. It&rsquo;s what happens when the API is down.</p>
+  </section>
+
+  <section class="sec" aria-labelledby="s-workflow">
+    <h2 class="t-section balance" id="s-workflow">The workflow</h2>
+<pre>Daily 07:00 ─┐
+             ├─→ Fetch openFDA ──→ Roll Up + Score ──→ Filter ≥60 ──→ Build Briefs
+Manual Run ──┘        │
+                      └── (on error, after 3 retries) ──→ Alert: Fetch Failed</pre>
+    <p>Two entry points: the <strong>Schedule Trigger</strong> is the production entry (daily 07:00); the <strong>Manual Trigger</strong> exists so the workflow can be executed from CLI and CI, which is how the committed run below was produced.</p>
+    <p>The manual trigger is there because the first CLI run failed &mdash; <code>n8n execute</code> returned <em>&ldquo;Missing node to start execution&rdquo;</em>, since a Schedule Trigger alone gives the CLI no entrypoint. Adding the manual trigger fixed it. Recording that because &ldquo;it worked first time&rdquo; would be the less useful claim.</p>
+  </section>
+
+  <section class="sec" aria-labelledby="s-markers">
+    <h2 class="t-section balance" id="s-markers">Production markers</h2>
+    <p class="lede t-caption">These are the specific things GTM Engineer postings ask for, and where each lives.</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Marker</th><th>Where</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Retry with backoff</strong></td><td class="dim"><code>retryOnFail: true</code>, <code>maxTries: 3</code>, <code>waitBetweenTries: 5000</code> on the HTTP node</td></tr>
+          <tr><td><strong>Error branch</strong></td><td class="dim"><code>onError: continueErrorOutput</code> routes a failed fetch to a dedicated alert node instead of killing the run</td></tr>
+          <tr><td><strong>Rate limiting</strong></td><td class="dim"><code>batching: { batchSize: 1, batchInterval: 1000 }</code> &mdash; deliberate throttling against a public API</td></tr>
+          <tr><td><strong>Timeout</strong></td><td class="dim">30s ceiling on the fetch</td></tr>
+          <tr><td><strong>Fail-closed guard</strong></td><td class="dim">the scoring node <em>throws</em> on an empty response rather than emitting an empty queue &mdash; a silent empty queue is worse than a loud failure</td></tr>
+          <tr><td><strong>Observability</strong></td><td class="dim"><code>alwaysOutputData</code> so a zero-result fetch is still visible in the run log</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>The alert node emits a structured payload &mdash; severity, stage, message, and an explicit <code>action: "Queue is stale. Do not send from it until this clears."</code> Wiring that to Slack or PagerDuty is scheduler config; it is <strong>not</strong> claimed here as built.</p>
+  </section>
+
+  <section class="sec" aria-labelledby="s-verified">
+    <h2 class="t-section balance" id="s-verified">Verified run</h2>
+    <p class="lede t-caption">Executed via <code>n8n execute</code> on n8n 2.35.7, against the live openFDA API.</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Node</th><th>Status</th><th>Items out</th><th>Time</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">Manual Run</td><td class="dim">success</td><td class="num">1</td><td class="num">1 ms</td></tr>
+          <tr><td class="mono">Fetch openFDA Enforcement</td><td class="dim">success</td><td class="num">1</td><td class="num">1,886 ms</td></tr>
+          <tr><td class="mono">Roll Up + Score Firms</td><td class="dim">success</td><td class="num">34</td><td class="num">42 ms</td></tr>
+          <tr><td class="mono">Filter &ge; 60</td><td class="dim">success</td><td class="num">11</td><td class="num">42 ms</td></tr>
+          <tr><td class="mono">Build Grounded Briefs</td><td class="dim">success</td><td class="num">10</td><td class="num">13 ms</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="data"><b>Funnel: 100 raw enforcement records &rarr; 34 firms after roll-up &rarr; 11 cleared the score threshold &rarr; 10 briefs.</b> The 11 &rarr; 10 step is not attrition &mdash; it is a hardcoded cap. <code>Build Grounded Briefs</code> does <code>rows.slice(0, 10)</code>, so the queue never emits more than 10 briefs per run no matter how many firms clear the threshold. <span class="note">That is a deliberate volume guard on a daily job, but it is a code decision and not a property of the data, so it is stated here rather than left to look like a drop-off. The other numbers do move between runs, because the data is live &mdash; that is the point of a scheduled signal pipeline, and the committed sample-run.json is one dated snapshot, not a fixed fixture.</span></p>
+  </section>
+
+  <section class="sec" aria-labelledby="s-repro">
+    <h2 class="t-section balance" id="s-repro">Run it yourself</h2>
+<pre>npm install n8n
+export N8N_USER_FOLDER="$PWD/.n8n-home"
+npx n8n import:workflow --input=workflows/fda-signal-to-outreach-queue.json
+npx n8n execute --id=fdaSignalQueue01</pre>
+    <p>No API key and no paid data &mdash; openFDA is a public federal endpoint.</p>
+  </section>
+
+  <section class="sec" aria-labelledby="s-scoring">
+    <h2 class="t-section balance" id="s-scoring">Scoring</h2>
+    <p>Mirrors the disclosed rubric in <a href="https://github.com/Aditya-chouhan/atlas-signal-engine">atlas-signal-engine</a> (max 100): severity by worst classification, recency of the most recent event, systemic count of distinct <code>event_id</code>s, a quality-system reason flag, and an ongoing-status bonus. It is a <strong>buying-trigger score, not a quality verdict</strong> &mdash; it measures how acute a firm&rsquo;s compliance pain is right now, not whether the firm is good or bad.</p>
+  </section>
+
+  <section class="sec" aria-labelledby="s-honesty">
+    <h2 class="t-section balance" id="s-honesty">Honesty guardrails</h2>
+    <ul class="bullets">
+      <li>Every fact in a generated brief is copied verbatim from the FDA filing. Nothing is inferred or embellished.</li>
+      <li><strong>No contact is ever invented.</strong> Outreach targets a <em>role</em> (<code>Chief Quality Officer / VP Quality</code>), never a named person or guessed email.</li>
+      <li><strong>No email is sent.</strong> This workflow produces a queue; delivery is out of scope.</li>
+      <li>The committed run is real output from a real execution against the live API.</li>
+      <li><code>node_modules/</code> is gitignored &mdash; n8n is a 2.5 GB install and is not vendored here.</li>
+    </ul>
+  </section>
+
+  <section class="sec" aria-labelledby="s-files">
+    <h2 class="t-section balance" id="s-files">Files</h2>
+<pre>workflows/fda-signal-to-outreach-queue.json   the workflow (importable)
+output/sample-run.json                        committed real execution output</pre>
+  </section>
+
+  <section class="cta" aria-labelledby="s-cta">
+    <h2 class="t-section" id="s-cta">Built something similar for your stack?</h2>
+    <p>I build signal-detection, enrichment and outbound systems inside your own tools. You own everything &mdash; nothing is locked to me.</p>
+    <div class="btn-row">
+      <a class="btn btn-primary" href="mailto:ai.adityachouhan@gmail.com?subject=Project">Start a conversation</a>
+      <a class="btn btn-ghost" href="https://github.com/Aditya-chouhan/n8n-gtm-orchestration">View the code</a>
+    </div>
+  </section>
+
+</main>
+
+
+<footer class="foot wrap">
+  <span>Aditya Chouhan &mdash; GTM engineering, Mumbai</span>
+  <span class="foot-links">
+    <a href="https://aditya-chouhan.github.io/">All projects</a>
+    <a href="https://github.com/Aditya-chouhan">GitHub</a>
+    <a href="https://www.linkedin.com/in/aditya-chouhan-gtm/">LinkedIn</a>
+  </span>
+</footer>
+
+<script>
+(function () {
+  'use strict';
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* --- nav materializes past the hero --- */
+  var nav = document.getElementById('nav');
+  var hero = document.querySelector('.hero');
+  if (nav && hero) {
+    var setStuck = function () {
+      nav.dataset.stuck = (window.scrollY > hero.offsetHeight - 52) ? 'true' : 'false';
+    };
+    setStuck();
+    window.addEventListener('scroll', setStuck, { passive: true });
+  }
+
+  /* --- reveal on scroll. Elements start visible; we only hide what we will observe. --- */
+  if (!reduce && 'IntersectionObserver' in window) {
+    var targets = document.querySelectorAll('.sec, .card, .cta');
+    Array.prototype.forEach.call(targets, function (el) { el.dataset.reveal = 'pending'; });
+
+    var io = new IntersectionObserver(function (entries) {
+      var i = 0;
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting) return;
+        var el = entry.target;
+        el.style.transitionDelay = (i * 60) + 'ms';
+        i++;
+        el.dataset.reveal = 'in';
+        io.unobserve(el);
+      });
+    }, { threshold: 0.08, rootMargin: '0px 0px -5% 0px' });
+
+    Array.prototype.forEach.call(targets, function (el) { io.observe(el); });
+
+    /* Failsafe: nothing may stay invisible. If the observer has not resolved an
+       element within 1.2s (deep link, scroll restore, throttled tab), show it. */
+    setTimeout(function () {
+      Array.prototype.forEach.call(
+        document.querySelectorAll('[data-reveal="pending"]'),
+        function (el) { el.style.transitionDelay = '0ms'; el.dataset.reveal = 'in'; }
+      );
+    }, 1200);
+  }
+
+  /* --- press feedback on pointerdown, not click. Delegated; cancels on drag-off. --- */
+  if (!reduce) {
+    var pressed = null;
+    var release = function () {
+      if (!pressed) return;
+      pressed.classList.remove('pressed');
+      pressed.classList.add('unpressed');
+      var el = pressed;
+      setTimeout(function () { el.classList.remove('unpressed'); }, 400);
+      pressed = null;
+    };
+    document.addEventListener('pointerdown', function (e) {
+      var el = e.target.closest('a.btn, button.btn, .nav-back, .nav-right > a');
+      if (!el) return;
+      pressed = el;
+      el.classList.remove('unpressed');
+      el.classList.add('pressed');
+    }, { passive: true });
+    ['pointerup', 'pointercancel', 'pointerleave', 'dragstart'].forEach(function (evt) {
+      document.addEventListener(evt, release, { passive: true });
+    });
+  }
+})();
+
+</script>
