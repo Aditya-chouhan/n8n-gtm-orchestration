@@ -409,9 +409,9 @@ figcaption { font-size: .8125rem; color: var(--text-3); margin-top: var(--s3); }
 </nav>
 
 <header class="hero wrap">
-  <div class="t-micro eyebrow">n8n &middot; scheduled orchestration</div>
-  <h1 class="t-display balance">FDA signal &rarr; scored outreach queue, with the failure handling</h1>
-  <p class="t-body-lg dek">A scheduled n8n workflow that turns live FDA enforcement filings into a ranked, grounded outreach queue &mdash; with the failure handling a production GTM pipeline actually needs.</p>
+  <div class="t-micro eyebrow">n8n &middot; scheduled orchestration + error handling</div>
+  <h1 class="t-display balance">FDA signal &rarr; scored outreach queue, with the failure handling verified</h1>
+  <p class="t-body-lg dek">A scheduled n8n workflow that turns live FDA enforcement filings into a ranked, grounded outreach queue &mdash; with a dedicated error workflow proven by deliberately breaking a live run, not just configured and left untested.</p>
 </header>
 
 <main id="main" class="wrap">
@@ -455,6 +455,19 @@ Manual Run ──┘        │
       </table>
     </div>
     <p>The alert node emits a structured payload &mdash; severity, stage, message, and an explicit <code>action: "Queue is stale. Do not send from it until this clears."</code> Wiring that to Slack or PagerDuty is scheduler config; it is <strong>not</strong> claimed here as built.</p>
+  </section>
+
+  <section class="sec" aria-labelledby="s-errorwf">
+    <h2 class="t-section balance" id="s-errorwf">A dedicated error workflow, verified firing</h2>
+    <p>The node-level alert above only catches a failure in the one node it's wired to. <code>workflows/gtm-error-handler.json</code> is a separate, registered <strong>workflow-level</strong> handler (via <code>settings.errorWorkflow</code>) that catches a crash anywhere in the run, classifies it, and routes accordingly &mdash; and it was proven by deliberately breaking a live workflow, not by reading the docs.</p>
+    <p class="data"><b>Verified, 2026-08-24.</b> A probe workflow (<code>workflows/_error-path-probe.json</code>) fails on demand. Production execution failed (<code>mode: webhook</code>); the handler fired <strong>80ms later</strong> (<code>mode: error</code>), classified the failure <code>code_defect</code>, and routed it to <code>page</code>. Both executions are committed at <code>output/error-workflow-fired-2026-08-23.json</code>.</p>
+    <h3 class="t-headline">Three things that only surfaced by actually running it</h3>
+    <ul class="bullets">
+      <li><strong>Error workflows do not fire for CLI executions.</strong> Testing via <code>n8n execute</code> produces a failed run and nothing else &mdash; only webhook and schedule executions trigger the registered handler. Verifying from the CLI alone would look clean and prove nothing.</li>
+      <li><strong>The handler must itself be published, or n8n silently does nothing.</strong> With the handler imported but inactive, the only trace was one server log line: <code>"Workflow ... is not active and cannot be executed."</code> The worst possible failure mode for an alerting path is one that fails silently.</li>
+      <li><strong>n8n rewrites a thrown error before the handler sees it.</strong> A Code node throwing <code>new TypeError('probe: ...')</code> arrives at the handler as <code>name: "Error"</code>, with the message rewritten and the original text moved to <code>error.description</code>.</li>
+    </ul>
+    <p>That third gotcha was a real bug in the classifier's first version &mdash; it keyed on <code>error.name</code>, so it never matched a code defect and fell through to <code>unclassified</code>. It still paged (the conservative default held), but the specific rule was wrong. Re-keyed on the <code>[line N]</code> suffix n8n only appends to code it evaluated itself. Re-tested end to end: <code>category</code> went <code>unclassified</code> &rarr; <code>code_defect</code>.</p>
   </section>
 
   <section class="sec" aria-labelledby="s-verified">
@@ -502,8 +515,12 @@ npx n8n execute --id=fdaSignalQueue01</pre>
 
   <section class="sec" aria-labelledby="s-files">
     <h2 class="t-section balance" id="s-files">Files</h2>
-<pre>workflows/fda-signal-to-outreach-queue.json   the workflow (importable)
-output/sample-run.json                        committed real execution output</pre>
+<pre>workflows/fda-signal-to-outreach-queue.json   the main workflow (importable)
+workflows/gtm-error-handler.json              dedicated error workflow
+workflows/_error-path-probe.json              fixture that fails on demand, for testing the above
+output/sample-run.json                        committed real execution output
+output/native-execution-2026-08-23.json       n8n's own unedited resultData.runData dump
+output/error-workflow-fired-2026-08-23.json   the failure + the handler run, 80ms apart</pre>
   </section>
 
   <section class="cta" aria-labelledby="s-cta">
