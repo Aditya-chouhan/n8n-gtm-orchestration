@@ -1,0 +1,136 @@
+{
+  "id": "gtmErrorHandler01",
+  "name": "GTM Error Handler",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "b1000000-0000-4000-8000-000000000001",
+      "name": "On Workflow Error",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        -220,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Classify a workflow failure so that only the failures a human can act on\n// wake a human up.\n//\n// The Error Trigger fires for the WHOLE workflow, including failures nobody\n// anticipated and failures of the schedule trigger itself. That is the\n// difference between this and an error branch wired off one node: an error\n// branch only catches the node you already thought to guard.\n\nconst input = $input.first().json;\nconst execution = input.execution || {};\nconst workflow = input.workflow || {};\nconst error = execution.error || {};\n\nconst message = String(error.message || 'Unknown error');\nconst name = String(error.name || 'Error');\nconst description = String(error.description || '');\nconst httpCode = Number(error.httpCode || error.statusCode || 0);\n\n// n8n normalises exceptions thrown inside a Code node. Verified by running it:\n// `throw new TypeError('probe: simulated code defect')` arrives here as\n// name=\"Error\" (constructor name lost), message=\"simulated code defect\n// [line 3]\" (prefix moved into error.description, line suffix appended).\n//\n// So error.name is NOT a reliable signal for Code-node failures. The \"[line N]\"\n// suffix is, because n8n only appends it for code it evaluated itself.\nconst isCodeNodeError = /\\[line \\d+\\]/.test(message);\n\n// Transient: the upstream had a bad moment. Retrying later is the correct\n// response and paging someone at 03:00 is not.\nconst TRANSIENT_PATTERNS = [\n  'ETIMEDOUT', 'ECONNRESET', 'ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN',\n  'socket hang up', 'timeout', 'network', 'rate limit', 'too many requests'\n];\n\nconst haystack = (message + ' ' + description).toLowerCase();\n\nconst looksTransient =\n  TRANSIENT_PATTERNS.some(p => haystack.includes(p.toLowerCase())) ||\n  httpCode === 429 ||\n  (httpCode >= 500 && httpCode <= 599);\n\n// Permanent: the workflow is broken, or the contract with the API changed.\n// These do not fix themselves and every run until someone looks will fail.\nconst CODE_ERRORS = ['TypeError', 'ReferenceError', 'SyntaxError'];\nconst looksLikeCodeBug = CODE_ERRORS.includes(name) || isCodeNodeError;\nconst looksLikeAuth = httpCode === 401 || httpCode === 403;\n\nlet category;\nlet severity;\n\nif (looksLikeCodeBug) {\n  category = 'code_defect';\n  severity = 'page';\n} else if (looksLikeAuth) {\n  category = 'auth_failure';\n  severity = 'page';\n} else if (httpCode >= 400 && httpCode < 500 && httpCode !== 429) {\n  // A 4xx that is not rate limiting usually means the request we are sending\n  // is now wrong -- a changed parameter or a removed endpoint.\n  category = 'contract_changed';\n  severity = 'page';\n} else if (looksTransient) {\n  category = 'transient';\n  severity = 'log_only';\n} else {\n  // Unknown beats silently-assumed-transient. An unclassified failure that\n  // turns out to be permanent costs a full day of pipeline.\n  category = 'unclassified';\n  severity = 'page';\n}\n\nreturn [{\n  json: {\n    severity,\n    category,\n    workflow_id: workflow.id || null,\n    workflow_name: workflow.name || null,\n    execution_id: execution.id || null,\n    execution_url: execution.url || null,\n    failed_node: execution.lastNodeExecuted || null,\n    error_name: name,\n    error_message: message,\n    error_description: description || null,\n    code_node_error: isCodeNodeError,\n    http_code: httpCode || null,\n    retry_of: execution.retryOf || null,\n    detected_at: new Date().toISOString()\n  }\n}];\n"
+      },
+      "id": "b1000000-0000-4000-8000-000000000002",
+      "name": "Classify Failure",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        20,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "sev1",
+              "leftValue": "={{ $json.severity }}",
+              "rightValue": "page",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "b1000000-0000-4000-8000-000000000003",
+      "name": "Page Or Log?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        260,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Actionable failure. Emit a page payload.\n//\n// Not wired to Slack or PagerDuty here: that needs a credential this repo does\n// not ship, and a delivery step that cannot run is worse than an explicit\n// handoff. The payload below is the contract a delivery node would consume.\n\nconst a = $input.first().json;\n\nconst title = `[GTM] ${a.category} in ${a.workflow_name || 'unknown workflow'}`;\nconst body = [\n  `Workflow : ${a.workflow_name} (${a.workflow_id})`,\n  `Failed at: ${a.failed_node || 'unknown node'}`,\n  `Error    : ${a.error_name}: ${a.error_message}`,\n  a.http_code ? `HTTP     : ${a.http_code}` : null,\n  `Execution: ${a.execution_url || a.execution_id}`,\n  `Detected : ${a.detected_at}`,\n  '',\n  'This class of failure does not clear on its own. The next scheduled run',\n  'will fail the same way until someone changes something.'\n].filter(Boolean).join('\\n');\n\nreturn [{\n  json: {\n    delivery: 'page',\n    channel_hint: 'oncall',\n    title,\n    body,\n    alert: a\n  }\n}];\n"
+      },
+      "id": "b1000000-0000-4000-8000-000000000004",
+      "name": "Page On-Call",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        520,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Transient failure. Record it and stay quiet.\n//\n// Suppression is only safe because it is counted: a transient that recurs is\n// not transient, and the repeat_window field is what a downstream check would\n// use to escalate rather than swallowing the same outage nightly.\n\nconst a = $input.first().json;\n\nreturn [{\n  json: {\n    delivery: 'log_only',\n    reason: 'Transient upstream failure; the next scheduled run is expected to succeed.',\n    escalate_if: 'the same category recurs within repeat_window',\n    repeat_window: '24h',\n    alert: a\n  }\n}];\n"
+      },
+      "id": "b1000000-0000-4000-8000-000000000005",
+      "name": "Log And Suppress",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        520,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "On Workflow Error": {
+      "main": [
+        [
+          {
+            "node": "Classify Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify Failure": {
+      "main": [
+        [
+          {
+            "node": "Page Or Log?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Page Or Log?": {
+      "main": [
+        [
+          {
+            "node": "Page On-Call",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log And Suppress",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true
+  },
+  "pinData": {},
+  "versionId": "b0000000-0000-4000-8000-000000000000"
+}

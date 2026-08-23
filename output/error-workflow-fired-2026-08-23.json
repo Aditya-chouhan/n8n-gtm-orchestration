@@ -1,0 +1,131 @@
+{
+  "what_this_proves": "A production (webhook-mode) execution failed; n8n invoked the configured errorWorkflow; the handler classified the failure and routed it to the page branch.",
+  "captured_at": "2026-08-23",
+  "n8n_version": "2.35.7",
+  "failing_execution": {
+    "id": 9,
+    "workflowId": "gtmWebhookProbe1",
+    "status": "error",
+    "mode": "webhook",
+    "startedAt": "2026-08-23 12:34:09.999"
+  },
+  "error_workflow_execution": {
+    "id": 10,
+    "workflowId": "gtmErrorHandler01",
+    "status": "success",
+    "mode": "error",
+    "startedAt": "2026-08-23 12:34:10.079",
+    "stoppedAt": "2026-08-23 12:34:10.122"
+  },
+  "nodes": {
+    "On Workflow Error": {
+      "executionTime_ms": 0,
+      "items": [
+        {
+          "execution": {
+            "id": "9",
+            "url": "http://localhost:5678/workflow/gtmWebhookProbe1/executions/9",
+            "error": {
+              "level": "info",
+              "shouldReport": false,
+              "description": "probe",
+              "tags": {},
+              "lineNumber": 3,
+              "message": "simulated code defect [line 3]",
+              "stack": "TypeError: probe: simulated code defect\n    at VmCodeWrapper (evalmachine.<anonymous>:3:7)\n    at evalmachine.<anonymous>:5:2\n    at Script.runInContext (node:vm:149:12)\n    at runInContext (node:vm:301:6)\n    at result (/Users/adityachouhan/Projects/n8n-gtm-orchestration/node_modules/@n8n/task-runner/dist/js-task-runner/js-task-runner.js:209:61)\n    at new Promise (<anonymous>)\n    at JsTaskRunner.runForAllItems (/Users/adityachouhan/Projects/n8n-gtm-orchestration/node_modules/@n8n/task-runner/dist/js-task-runner/js-task-runner.js:202:34)\n    at JsTaskRunner.executeTask (/Users/adityachouhan/Projects/n8n-gtm-orchestration/node_modules/@n8n/task-runner/dist/js-task-runner/js-task-runner.js:137:26)\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async Object.waitingForSettings (/Users/adityachouhan/Projects/n8n-gtm-orchestration/node_modules/@n8n/task-runner/dist/task-runner.js:283:17)"
+            },
+            "lastNodeExecuted": "Boom",
+            "mode": "webhook",
+            "executionContext": {
+              "version": 1,
+              "establishedAt": 1787488449993,
+              "source": "webhook",
+              "triggerNode": {
+                "name": "Probe Webhook",
+                "type": "n8n-nodes-base.webhook"
+              },
+              "redaction": {
+                "version": 2,
+                "production": false,
+                "manual": false
+              }
+            }
+          },
+          "workflow": {
+            "id": "gtmWebhookProbe1",
+            "name": "ZZ Webhook Failure Probe (throwaway)"
+          }
+        }
+      ]
+    },
+    "Classify Failure": {
+      "executionTime_ms": 9,
+      "items": [
+        {
+          "severity": "page",
+          "category": "code_defect",
+          "workflow_id": "gtmWebhookProbe1",
+          "workflow_name": "ZZ Webhook Failure Probe (throwaway)",
+          "execution_id": "9",
+          "execution_url": "http://localhost:5678/workflow/gtmWebhookProbe1/executions/9",
+          "failed_node": "Boom",
+          "error_name": "Error",
+          "error_message": "simulated code defect [line 3]",
+          "error_description": "probe",
+          "code_node_error": true,
+          "http_code": null,
+          "retry_of": null,
+          "detected_at": "2026-08-23T12:34:10.091Z"
+        }
+      ]
+    },
+    "Page Or Log?": {
+      "executionTime_ms": 24,
+      "items": [
+        {
+          "severity": "page",
+          "category": "code_defect",
+          "workflow_id": "gtmWebhookProbe1",
+          "workflow_name": "ZZ Webhook Failure Probe (throwaway)",
+          "execution_id": "9",
+          "execution_url": "http://localhost:5678/workflow/gtmWebhookProbe1/executions/9",
+          "failed_node": "Boom",
+          "error_name": "Error",
+          "error_message": "simulated code defect [line 3]",
+          "error_description": "probe",
+          "code_node_error": true,
+          "http_code": null,
+          "retry_of": null,
+          "detected_at": "2026-08-23T12:34:10.091Z"
+        }
+      ]
+    },
+    "Page On-Call": {
+      "executionTime_ms": 5,
+      "items": [
+        {
+          "delivery": "page",
+          "channel_hint": "oncall",
+          "title": "[GTM] code_defect in ZZ Webhook Failure Probe (throwaway)",
+          "body": "Workflow : ZZ Webhook Failure Probe (throwaway) (gtmWebhookProbe1)\nFailed at: Boom\nError    : Error: simulated code defect [line 3]\nExecution: http://localhost:5678/workflow/gtmWebhookProbe1/executions/9\nDetected : 2026-08-23T12:34:10.091Z\nThis class of failure does not clear on its own. The next scheduled run\nwill fail the same way until someone changes something.",
+          "alert": {
+            "severity": "page",
+            "category": "code_defect",
+            "workflow_id": "gtmWebhookProbe1",
+            "workflow_name": "ZZ Webhook Failure Probe (throwaway)",
+            "execution_id": "9",
+            "execution_url": "http://localhost:5678/workflow/gtmWebhookProbe1/executions/9",
+            "failed_node": "Boom",
+            "error_name": "Error",
+            "error_message": "simulated code defect [line 3]",
+            "error_description": "probe",
+            "code_node_error": true,
+            "http_code": null,
+            "retry_of": null,
+            "detected_at": "2026-08-23T12:34:10.091Z"
+          }
+        }
+      ]
+    }
+  }
+}

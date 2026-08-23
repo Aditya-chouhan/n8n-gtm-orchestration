@@ -1,0 +1,56 @@
+{
+  "id": "gtmErrorPathProbe",
+  "name": "Error Path Probe (test fixture)",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "path": "gtm-failure-probe",
+        "httpMethod": "GET",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "c1000000-0000-4000-8000-000000000001",
+      "name": "Probe Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -200,
+        200
+      ],
+      "webhookId": "c1000000-0000-4000-8000-0000000000ff"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Test fixture. Crashes on purpose so the error path can be proven\n// rather than assumed.\n//\n// This must be triggered by the WEBHOOK, not by `n8n execute`:\n// error workflows do not fire for CLI executions (mode: cli).\n// Verified 2026-08-23 -- see output/error-workflow-fired-2026-08-23.json\nthrow new TypeError('probe: simulated code defect');\n"
+      },
+      "id": "c1000000-0000-4000-8000-000000000002",
+      "name": "Throw Deliberate Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        60,
+        200
+      ]
+    }
+  ],
+  "connections": {
+    "Probe Webhook": {
+      "main": [
+        [
+          {
+            "node": "Throw Deliberate Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "gtmErrorHandler01"
+  },
+  "pinData": {},
+  "versionId": "c0000000-0000-4000-8000-000000000000"
+}
